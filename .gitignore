@@ -6,6 +6,9 @@
 /filt_parser.h
 /filt_parser.output
 /filt_scanner.c
+/flex_bison/filt_parser.c
+/flex_bison/filt_parser.h
+/flex_bison/filt_scanner.c
 /tcptrace
 /versnum
 
