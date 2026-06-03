@@ -393,10 +393,17 @@ int gethdrlength (struct ip *pip, void *plast)
 int getpayloadlength (struct ip *pip, void *plast)
 {
     struct ipv6 *pipv6;
-    
+    int ext_len;
+
     if (PIP_ISV6(pip)) {
-	pipv6 = (struct ipv6 *) pip;  /* how about all headers */
-	return ntohs(pipv6->ip6_lngth);
+	pipv6 = (struct ipv6 *) pip;
+	/* ip6_lngth covers everything after the 40-byte fixed header,
+	   including any extension headers. Subtract those so the returned
+	   value is the TCP/UDP segment length (header + data). */
+	ext_len = total_length_ext_headers(pipv6);
+	if (ext_len < 0)
+	    ext_len = 0;
+	return ntohs(pipv6->ip6_lngth) - ext_len;
     }
     return ntohs(pip->ip_len) - (IP_HL(pip) * 4);
 }
@@ -692,24 +699,25 @@ int total_length_ext_headers(
        case IPPROTO_HOPOPTS:
        case IPPROTO_ROUTING:
        case IPPROTO_DSTOPTS:
-	 total_length = 8 + (pheader->ip6ext_len * 8);
+	 total_length += 8 + (pheader->ip6ext_len * 8);
 	 nextheader = pheader->ip6ext_nheader;
 	 pheader = (struct ipv6_ext *)
 	   ((char *)pheader + 8 + (pheader->ip6ext_len)*8);
 	 break;
-	 
+
        case IPPROTO_FRAGMENT:
 	 total_length += 8;
 	 nextheader = pheader->ip6ext_nheader;
 	 pheader = (struct ipv6_ext *)((char *)pheader + 8);
 	 break;
-       
-       case IPPROTO_NONE: /* End of extension headers */
+
+       /* upper-layer protocol reached: return accumulated extension length */
+       case IPPROTO_NONE:
+       case IPPROTO_TCP:
+       case IPPROTO_UDP:
+       case IPPROTO_ICMPV6:
 	 return(total_length);
-	 
-       case IPPROTO_TCP:  /* No extension headers */
-	 return(0);
-	 
+
        default:           /* Unknown type */
 	 return(-1);
       }
