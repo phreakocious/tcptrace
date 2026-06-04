@@ -1963,7 +1963,15 @@ dotrace(
 	    * and then change the color for the last byte of FIN.
 	    */
 	    if(tcp_data_length > 0) { /* DATA + FIN */
-	       /* Data - default color */
+	       /* Data - retrans/hw_dup aware color.  Was hardcoded to the
+		* default (white) color, so a retransmitted segment that also
+		* carried a FIN had its data body drawn as if fresh (only the
+		* FIN byte got "R FIN").  Mirror the pure-DATA path below so the
+		* body is painted just like any other retransmit. */
+	       if (hw_dup)
+		   plotter_perm_color(from_tsgpl, hw_dup_color);
+	       else if (retrans)
+		   plotter_perm_color(from_tsgpl, retrans_color);
 	       plotter_darrow(from_tsgpl, current_time, SeqRep(thisdir,start));
 	       plotter_line(from_tsgpl,
 			    current_time, SeqRep(thisdir,start),
